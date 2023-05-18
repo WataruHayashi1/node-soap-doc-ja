@@ -15,6 +15,9 @@
   - [soap.createClientAsync(url\[, options\])](#soapcreateclientasyncurl-options)
   - [soap.listen(server, path, service, wsdl, callback)](#soaplistenserver-path-service-wsdl-callback)
   - [soap.listen(server, options)](#soaplistenserver-options)
+  - [サーバーログ](#サーバーログ)
+  - [サーバーイベント](#サーバーイベント)
+  - [片道呼び出しでのサーバーレスポンス](#片道呼び出しでのサーバーレスポンス)
 
 ## 機能
 
@@ -231,3 +234,35 @@ soap.listen(server, {
     xmlKey: 'theXml'
 });
 ```
+
+### サーバーログ
+
+`log`メソッドが定義されている場合は、データと共に'received'か'replied'を指定すると呼び出される。
+
+```js
+  server = soap.listen(...)
+  server.log = function(type, data) {
+    // 'received'か'replied'型
+  };
+```
+
+### サーバーイベント
+
+サーバーインスタンスは以下のイベントを発行する: 
+
+- リクエスト - メッセージを受け取る度に発行される。コールバックのシグネチャーは`function(request, methodName)`。
+- レスポンス - SOAPレスポンスを送る前に発行される。コールバックのシグネチャーは`function(response, methodName)`。
+- ヘッダー - SOAPヘッダーが空ではないときに発行される。コールバックのシグネチャーは`function(headers, methodName)`。
+
+`request`、`headers`、そして専用サービスメソッドの順に呼び出されます。
+
+### 片道呼び出しでのサーバーレスポンス
+
+片道での(もしくは非同期の)呼び出しは、WSDLで定義された出力がないオペレーションが呼び出された際に起こる。
+サーバーはオペレーションの結果を無視して、クライアントにレスポンス(デフォルトではボディ部がなしのステータスコード200)を送る。
+
+標準的な実装のSOAPに対して、適切なクライアントの機体に応えるようなレスポンスを設定できる。
+サーバーオプションに`oneWay`を渡す必要がある。また、以下のキーを使う必要がある。
+
+- `emptyBody`: trueに設定すると、空のボディを返し、そうでないとコンテンツはなくなる。(デフォルトはfalse)
+- `responseCode`: デフォルトのステータスコード200を上書きするオプション (SAPの標準に準拠した202レスポンスなど)
