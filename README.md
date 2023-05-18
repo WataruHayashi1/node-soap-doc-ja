@@ -157,32 +157,30 @@ WSDL URLをもとに、SOAPクライアントを作成する。ローカルフ�
                   };
               },
 
-              // This is how to define an asynchronous function with a callback.
+              // コールバックとして非同期関数を定義する方法
               MyAsyncFunction: function(args, callback) {
-                  // do some work
                   callback({
                       name: args.name
                   });
               },
 
-              // This is how to define an asynchronous function with a Promise.
+              // Promiseを用いた非同期関数を定義する方法
               MyPromiseFunction: function(args) {
                   return new Promise((resolve) => {
-                    // do some work
                     resolve({
                       name: args.name
                     });
                   });
               },
 
-              // This is how to receive incoming headers
+              // 送られてきたheaderをどのように受け取るか
               HeadersAwareFunction: function(args, cb, headers) {
                   return {
                       name: headers.Token
                   };
               },
 
-              // You can also inspect the original `req`
+              // オリジナルのリクエスト(req)も調査可能
               reallyDetailedFunction: function(args, cb, headers, req) {
                   console.log('SOAP `reallyDetailedFunction` request from ' + req.connection.remoteAddress);
                   return {
