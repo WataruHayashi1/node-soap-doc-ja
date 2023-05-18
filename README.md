@@ -12,6 +12,7 @@
 - [サポート](#サポート)
 - [モジュール](#モジュール)
   - [soap.createClient(url\[, options\], callback)](#soapcreateclienturl-options-callback)
+  - [soap.createClientAsync(url\[, options\])](#soapcreateclientasyncurl-options)
 
 ## 機能
 
@@ -40,7 +41,7 @@ Google Form上では、メンテナーもサポートしている
 
 ### soap.createClient(url[, options], callback)
 
-WSDL urlからSOAPクライアントを作成する。ローカルファイルパスにも対応。
+WSDL URLをもとに、SOAPクライアントを作成する。ローカルファイルパスにも対応。
 
 - `url` (*string*): HTTP/HTTPS URLかローカルファイルパス
 - `options` (*Object*):
@@ -78,6 +79,38 @@ WSDL urlからSOAPクライアントを作成する。ローカルファイル�
           console.log(result);
       });
   });
+```
+
+注意点: 0.10.Xより上のnodeを使用している場合、長いチャンクレスポンスの切り捨てを避けるためにSOAPヘッダーに`{connection: 'keep-alive'}`を指定する必要の可能性がある。
+
+### soap.createClientAsync(url[, options])
+
+WSDL URLをもとに、SOAPクライアントを作成する。ローカルファイルパスにも対応。
+
+与えられたWSDLファイルをもとに、`Promise<Client>`を構築する。
+
+- `url` (*string*): HTTP/HTTPS URLかローカルファイルパス
+- `options` (*Object*): [soap.createClient(url[, options], callback)](#soapcreateclienturl-options-callback)の説明を参照
+- Returns: `Promise<Client>`
+
+**使用例**
+
+```js
+  var soap = require('soap');
+  var url = 'http://example.com/wsdl?wsdl';
+  var args = {name: 'value'};
+
+  // then/catch
+  soap.createClientAsync(url).then((client) => {
+    return client.MyFunctionAsync(args);
+  }).then((result) => {
+    console.log(result);
+  });
+
+  // async/await
+  var client = await soap.createClientAsync(url);
+  var result = await client.MyFunctionAsync(args);
+  console.log(result[0]);
 ```
 
 注意点: 0.10.Xより上のnodeを使用している場合、長いチャンクレスポンスの切り捨てを避けるためにSOAPヘッダーに`{connection: 'keep-alive'}`を指定する必要の可能性がある。
