@@ -54,3 +54,30 @@ WSDL urlからSOAPクライアントを作成する。ローカルファイル�
   - `httpClient` (*Object*): ビルトインのHTTPクライアントをオーバーライドする。`request(rurl, data, callback, exheaders, exoptions)`を埋め込む必要がある
   - `request` (*Object*): デフォルトのリクエストモジュール([Axios](https://axios-http.com/) `v0.40.0`)をオーバーライドする
   - `wsdl_headers` (*Object*): WSDLリクエストを送信するためのHTTPヘッダーと値を設定する
+  - `wsdl_options` (*Object*): WSDLリクエスト上のリクエストモジュールのオプションを設定する。デフォルトのリクエストモジュールを使用している場合は、[Request Config | Axios Docs](https://axios-http.com/docs/req_config)を参照
+  - `disableCache` (*boolean*): WSDLファイルとオプションオブジェクトのキャッシングを防ぐ
+  - `overridePromiseSuffix` (*string*): PromiseメソッドのWSDL操作名のsuffixをオーバーライドする。WSDL操作名の終わりが`Async`である場合、このオプションを設定する必要がある。 (**デフォルト**: `Async`)
+  - `normalizeNames` (*boolean*): WSDL操作名中の非識別子(`[^a-z&_0-9]`)を`_`に置換する。クライアントが使用しているWSDLに`soap:method`と`soap-method`のような2つの操作があると上書きされる。この場合は、代わりに`client['soap:method']()`のようなブラケット記法を使う必要がある。
+  - `namespaceArrayElements` (*boolean*): 非標準の配列構造をサポートする。JSON配列`{list: [{elem: 1}, {elem: 2}]}`はXML`<list><elem>1</elem></list> <list><elem>2</elem></list>`に変換される。`false`の場合、XML`<list> <elem>1</elem> <elem>2</elem> </list>`に変換される。 (**デフォルト**: `false)
+  - `stream` (*boolean): XML SOAPレスポンスをパースするストリームを使用する。(**デフォルト**: `false`)
+  - `returnSaxStream` (*boolean*): SAXストリームを返し、XMLのパースの責任をエンドユーザーに移す
+  - `parseResponseAttachments` (*boolean*): MTOMアタッチメントをもつmultipart/relatedレスポンスとして返す。SOAPクライアントの`lastResponseAttachments`プロパティ上のアタッチメントを参照する。 (**デフォルト**: `false`)
+- `callback` (*Function*): 
+  - `err` (*Error |*)
+  - `result` (*Any*)
+- Returns: `(Client)`
+
+**使用例**
+```js
+  var soap = require('soap');
+  var url = 'http://example.com/wsdl?wsdl';
+  var args = {name: 'value'};
+
+  soap.createClient(url, {}, function(err, client) {
+      client.MyFunction(args, function(err, result) {
+          console.log(result);
+      });
+  });
+```
+
+注意点: 0.10.Xより上のnodeを使用している場合、長いチャンクレスポンスの切り捨てを避けるためにSOAPヘッダーに`{connection: 'keep-alive'}`を指定する必要の可能性がある。
