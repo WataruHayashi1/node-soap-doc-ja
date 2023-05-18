@@ -13,6 +13,8 @@
 - [モジュール](#モジュール)
   - [soap.createClient(url\[, options\], callback)](#soapcreateclienturl-options-callback)
   - [soap.createClientAsync(url\[, options\])](#soapcreateclientasyncurl-options)
+  - [soap.listen(server, path, service, wsdl, callback)](#soaplistenserver-path-service-wsdl-callback)
+  - [soap.listen(server, options)](#soaplistenserver-options)
 
 ## 機能
 
@@ -114,3 +116,120 @@ WSDL URLをもとに、SOAPクライアントを作成する。ローカルフ�
 ```
 
 注意点: 0.10.Xより上のnodeを使用している場合、長いチャンクレスポンスの切り捨てを避けるためにSOAPヘッダーに`{connection: 'keep-alive'}`を指定する必要の可能性がある。
+
+### soap.listen(server, path, service, wsdl, callback)
+
+パス上でlistenし、サービスを提供するSOAPサーバーを作成する
+
+### soap.listen(server, options)
+
+パス上でlistenし、サービスを提供するSOAPサーバーを作成する
+
+- `server` (*Object*): [http](https://nodejs.org/api/http.html)サーバーか[Express](http://expressjs.com/)フレームワークベースのサーバー
+- `path` (*string*)
+- `options` (*Object*): *server*オプションと[WSDLオプション]を含めたオブジェクト
+  - `path` (*string*)
+  - `services` (*Object*)
+  - `xml` (*string*)
+  - `uri` (*string*)
+  - `pfx` (*string | Buffer*): PFX形式、もしくはPKCS12形式のサーバーの秘密鍵や証明書、CA証明書 (秘密鍵、証明書、CA証明書は相互排他となる)
+  - `key` (*string | Buffer*): PEM形式のサーバー秘密鍵 (鍵を配列に格納可能) (必須)
+  - `passphrase` (*string*): PFX、秘密鍵のパスフレーズ
+  - `cert` (*string*): PEM形式のサーバー証明書鍵 (証明書を配列に格納可能) (必須)
+  - `ca` (*string[]  | Buffer*): PEM形式の信頼される証明書。省略された場合、VeriSignのようなよく知られたロートCAが用いられる
+  - `crl` (*string | string[]*): PEMをCRL(Certificate Revocation List)にエンコードする 
+  - `ciphers` (*string*): 使用する、もしくは除外する暗号を`:`で区切って記述する。
+  - `enableChunkedEncoding` (*boolean*): レスポンス中のchunked transfer encodingを操作する。クライアントの一部(Windows10のMDM登録SOAPクライアントなど)は、transfer-encodingモードに厳密で、chunkedレスポンスを受け入れ不可となる。このオプションはchunked transfer encodingを無効にする (**デフォルト**: `true`)
+- `services` (*Object*)
+- `wsdl` (*string*): サービスを定義するXML
+- `callback` (*Function*): サーバーが初期化されたあとに実行される関数
+- Returns: `Server`
+
+**使用例**
+
+```js
+  var myService = {
+      MyService: {
+          MyPort: {
+              MyFunction: function(args) {
+                  return {
+                      name: args.name
+                  };
+              },
+
+              // This is how to define an asynchronous function with a callback.
+              MyAsyncFunction: function(args, callback) {
+                  // do some work
+                  callback({
+                      name: args.name
+                  });
+              },
+
+              // This is how to define an asynchronous function with a Promise.
+              MyPromiseFunction: function(args) {
+                  return new Promise((resolve) => {
+                    // do some work
+                    resolve({
+                      name: args.name
+                    });
+                  });
+              },
+
+              // This is how to receive incoming headers
+              HeadersAwareFunction: function(args, cb, headers) {
+                  return {
+                      name: headers.Token
+                  };
+              },
+
+              // You can also inspect the original `req`
+              reallyDetailedFunction: function(args, cb, headers, req) {
+                  console.log('SOAP `reallyDetailedFunction` request from ' + req.connection.remoteAddress);
+                  return {
+                      name: headers.Token
+                  };
+              }
+          }
+      }
+  };
+
+  var xml = require('fs').readFileSync('myservice.wsdl', 'utf8');
+
+  //httpサーバーの例
+  var server = http.createServer(function(request,response) {
+      response.end('404: Not Found: ' + request.url);
+  });
+
+  server.listen(8000);
+  soap.listen(server, '/wsdl', myService, xml, function(){
+    console.log('server initialized');
+  });
+
+  //expressサーバーの例
+  var app = express();
+  //ボディ部のパーサーミドルウェアをサポート (オプション)
+  app.use(bodyParser.raw({type: function(){return true;}, limit: '5mb'}));
+  app.listen(8001, function(){
+      //注意点: /wsdlルートはsoapモジュールによってハンドルされ、
+      //他全てのルートとミドルウェアは動作を続ける
+      soap.listen(app, '/wsdl', myService, xml, function(){
+        console.log('server initialized');
+      });
+  });
+```
+
+```js
+var xml = require('fs').readFileSync('myservice.wsdl', 'utf8');
+
+soap.listen(server, {
+    // サーバーオプション
+    path: '/wsdl',
+    services: myService,
+    xml: xml,
+
+    // WSDLオプション
+    attributesKey: 'theAttrs',
+    valueKey: 'theVal',
+    xmlKey: 'theXml'
+});
+```
