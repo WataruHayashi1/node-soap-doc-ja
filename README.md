@@ -18,6 +18,11 @@
   - [サーバーログ](#サーバーログ)
   - [サーバーイベント](#サーバーイベント)
   - [片道呼び出しでのサーバーレスポンス](#片道呼び出しでのサーバーレスポンス)
+  - [PasswordDigestを用いたサーバーセキュリティーの例](#passworddigestを用いたサーバーセキュリティーの例)
+  - [サーバー接続認証](#サーバー接続認証)
+- [SOAPヘッダー](#soapヘッダー)
+  - [受信SOAPヘッダー](#受信soapヘッダー)
+  - [送信SOAPヘッダー](#送信soapヘッダー)
 
 ## 機能
 
@@ -266,3 +271,148 @@ soap.listen(server, {
 
 - `emptyBody`: trueに設定すると、空のボディを返し、そうでないとコンテンツはなくなる。(デフォルトはfalse)
 - `responseCode`: デフォルトのステータスコード200を上書きするオプション (SAPの標準に準拠した202レスポンスなど)
+
+### PasswordDigestを用いたサーバーセキュリティーの例
+
+`server.authenticate`が定義されてない場合、認証は行われない。
+
+非同期認証 :
+
+```js
+  server = soap.listen(...)
+  server.authenticate = function(security, callback) {
+    var created, nonce, password, user, token;
+    token = security.UsernameToken, user = token.Username,
+            password = token.Password, nonce = token.Nonce, created = token.Created;
+
+    myDatabase.getUser(user, function (err, dbUser) {
+      if (err || !dbUser) {
+        callback(false);
+        return;
+      }
+
+      callback(password === soap.passwordDigest(nonce, created, dbUser.password));
+    });
+  };
+```
+
+同期認証 : 
+
+```js
+  server = soap.listen(...)
+  server.authenticate = function(security) {
+    var created, nonce, password, user, token;
+    token = security.UsernameToken, user = token.Username,
+            password = token.Password, nonce = token.Nonce, created = token.Created;
+    return user === 'user' && password === soap.passwordDigest(nonce, created, 'password');
+  };
+```
+
+### サーバー接続認証
+
+`server.authorizeConnection`はSOAPサービスのメソッドより先に呼び出される。
+`server.authorizeConnection`が定義され`false`を返す場合、着信した接続は終了する。
+
+```js
+  server = soap.listen(...)
+  server.authorizeConnection = function(req) {
+    return true; // or false
+  };
+```
+
+## SOAPヘッダー
+
+### 受信SOAPヘッダー
+
+3つめの引数を与えることによって、サービスメソッドはSOAPヘッダーとみなすことができる。
+
+```js
+  {
+      HeadersAwareFunction: function(args, cb, headers) {
+          return {
+              name: headers.Token
+          };
+      }
+  }
+```
+
+また、'headers'イベントを登録することも可能である。
+このイベントは、SOAPヘッダーが空でないときに、サービスメソッドが呼び出される前にトリガーされる。
+
+```js
+  server = soap.listen(...)
+  server.on('headers', function(headers, methodName) {
+    // サービスメソッドが渡される前であれば、
+    // ヘッダーの値を変えることは可能である。
+    // また、SOAP Faultを投げることも可能である。
+  });
+```
+
+最初のパラメーターはヘッダーオブジェクトで、2つめのパラメーターは呼び出されるSOAPメソッドの名前となる。
+(この場合、メソッドによってヘッダーの扱いを変える必要がある)
+
+### 送信SOAPヘッダー
+
+クライアントとサーバーは送信されるものに付与されるSOAPヘッダーを定義することができる。
+ヘッダーを管理するのに、以下のようなメソッドがある。
+
+**addSoapHeader(soapHeader[, name, namespace, xmlns])**
+
+SOAPヘッダーにsoap:Headerノードを追加する。
+
+**パラーメーター**
+
+- `soapHeader` (*Object({rootName: {name: 'value'}})*): 厳密なxml-stringか関数 (サーバー限定)
+
+サーバー限定ではあるが、`soapHeader`はリクエスト中の情報から動的にヘッダーを生成することができる関数となることができる。
+この関数は、受信したリクエストごとに以下の引数で呼び出される。
+
+- `methodName`: リクエストメソッドの名前
+- `args`: リクエストの引数
+- `headers`: リクエストのヘッダー
+- `req`: オリジナルのリクエストオブジェクト
+
+関数の返り値は、リクエストに対するレスポンスの送信ヘッダーの代わりとして、オブジェクト({rootName: {name: 'value'}})か厳密なxml-stringでなければならない。
+
+例:
+
+```js
+  server = soap.listen(...);
+  server.addSoapHeader(function(methodName, args, headers, req) {
+    console.log('Adding headers for method', methodName);
+    return {
+      MyHeader1: args.SomeValueFromArgs,
+      MyHeader2: headers.SomeRequestHeader
+    };
+    // または "<MyHeader1>値</MyHeader1>" と指定できる
+  });
+```
+
+**返り値**
+
+ヘッダーが挿入されるインデックス
+
+**第一引数がオブジェクトのときオプションのパラメーターは :**
+
+- `name`: 未知のパラメーター(空の文字列でもよい)
+- `namespace`: xml名前空間のプレフィックス
+- `xmlns`: URI
+
+**changeSoapHeader(index, soapHeader[, name, namespacem xmlns])**
+
+すでにあるSOAPヘッダーを変更する
+
+**パラメーター**
+
+- `index`: ヘッダーのインデックスを新しく与えられた値で置き換える
+- `soapHeader`: オブジェクト({rootName: {name: 'value'}})や厳密なxml-string、関数 (サーバー限定)
+
+`soapHeader`に関数を渡す方法は`addSoapHeader`を参照
+
+**getSoapHeaders()**
+
+全ての定義済みヘッダーを返す
+
+**clearSoapHeaders()**
+
+全ての定義済みヘッダーを除外する
