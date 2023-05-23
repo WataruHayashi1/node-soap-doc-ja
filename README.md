@@ -23,6 +23,10 @@
 - [SOAPヘッダー](#soapヘッダー)
   - [受信SOAPヘッダー](#受信soapヘッダー)
   - [送信SOAPヘッダー](#送信soapヘッダー)
+- [クライアント](#クライアント)
+  - [Client.describe()](#clientdescribe)
+  - [Client.setSecurity(security)](#clientsetsecuritysecurity)
+  - [Client.method(args, callback, options)](#clientmethodargs-callback-options)
 
 ## 機能
 
@@ -416,3 +420,66 @@ SOAPヘッダーにsoap:Headerノードを追加する。
 **clearSoapHeaders()**
 
 全ての定義済みヘッダーを除外する
+
+## クライアント
+
+`Client`のインスタンスは`soap.createClient`のコールバックに渡され、SOAPサービスでメソッドを実行するのに使用される。
+
+### Client.describe()
+
+サービスやポート、メソッドをJavaScriptのオブジェクトとして登録する
+
+```js
+  client.describe() // returns
+    {
+      MyService: {
+        MyPort: {
+          MyFunction: {
+            input: {
+              name: 'string'
+            }
+          }
+        }
+      }
+    }
+```
+
+### Client.setSecurity(security)
+
+使用するセキュリティプロトコルを指定する
+
+[セキュリティ](#セキュリティ)の使用例を参照
+
+### Client.method(args, callback, options)
+
+SOAPサービスのメソッドを呼び出す
+
+- `args` (*Object*): SOAPボディ部内にXMLドキュメントを生成する引数
+- `callback` (*Function*)
+- `options` (*Object*): WSDLリクエストにあるリクエストモジュールのオプションを設定する。
+  デフォルトのリクエストモジュールを使用している場合は、[Request Config | Axios Docs](https://axios-http.com/docs/req_config)を参照。
+  以下のような`node-soap`で追加されたオプション:
+  - `forever` (*boolean*): keep-aliveの接続とプールを有効にする
+  - `attachments` (*Array*): アタッチメントオブジェクトの配列。リクエストをMTOM(*headers['Content-Type']='multipart/related; type="application/xop+xml"; start=...'*)に変換する。
+  ```js
+  [{
+      mimetype: content mimetype,
+      contentId: part id,
+      name: file name,
+      body: binary data
+   },
+  ...
+  ]
+  ```
+  - `forceMTOM` (*boolean*): アタッチメントがない場合でも、MOTMとしてリクエストを送信する
+  - `forceGzip` (*boolean*): gzipへのエンコードを強制する (**デフォルト**: `false`)
+
+使用例
+```js
+  client.MyFunction({name: 'value'}, function(err, result, rawResponse, soapHeader, rawRequest) {
+      // resultはJavaScriptオブジェクト
+      // rawResponseはxmlレスポンス
+      // soapHeaderはJavaScriptオブジェクトとしてのレスポンスSOAPヘッダー
+      // rawRequestは無加工のxmlリクエスト
+  })
+```
