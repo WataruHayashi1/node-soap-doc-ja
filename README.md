@@ -27,6 +27,7 @@
   - [Client.describe()](#clientdescribe)
   - [Client.setSecurity(security)](#clientsetsecuritysecurity)
   - [Client.method(args, callback, options)](#clientmethodargs-callback-options)
+  - [Client.methodAsync(args, options)](#clientmethodasyncargs-options)
 
 ## 機能
 
@@ -483,3 +484,53 @@ SOAPサービスのメソッドを呼び出す
       // rawRequestは無加工のxmlリクエスト
   })
 ```
+
+### Client.methodAsync(args, options)
+
+SOAPサービスのメソッドを呼び出す
+
+- `args` (*Object*): SOAPボディ部内にXMLドキュメントを生成する引数
+- `options` (*Object*): [Client.method(args, callback, options)](#clientmethodargs-callback-options)を参照
+
+使用例
+```js
+  client.MyFunctionAsync({name: 'value'}).then((result) => {
+    // resultは、resultやrawResponse、soapheader、rawRequestを含んだJavaScriptオブジェクト
+    // resultはJavaScriptオブジェクト
+    // rawResponseはxmlレスポンス
+    // soapHeaderはJavaScriptオブジェクトとしてのレスポンスSOAPヘッダー
+    // rawRequestは無加工のxmlリクエスト
+  })
+```
+
+`args`のJSON例
+
+上の`{name: 'value'}`を引数として使っている使用例では、生成されるSOAPメッセージは以下のようになる:
+
+```json
+<?xml version="1.0" encoding="utf-8"?>
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+   <soapenv:Body>
+      <Request xmlns="http://www.example.com/v1">
+          <name>value</name>
+      </Request>
+   </soapenv:Body>
+</soapenv:Envelope>
+```
+
+SOAPメッセージ中の"Request"要素は、WSDLを由来とする。`args`要素中に名前空間prefixがないときは、デフォルト値が使用される。それ以外の場合は、必要に応じて要素の名前に名前空間prefixを加える必要がある。
+
+現在、JSONに引数を渡すとき、XMLの仕様では許容されているにもかかわらず要素に子要素とテキスト値の両方を渡すことはできない。
+
+`args`のXML例
+
+XMLを構成するためのJSON`args`に含まれる個々の要素の代わりに、整形されたXMLを渡すこともできる。その場合、XML宣言(`<?xml version="1.0" encoding="UTF-8"?>`)やドキュメント型宣言(`<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Frameset//EN" "http://www.w3.org/TR/html4/frameset.dtd">`)を含めてはいけない。
+
+```js
+ var args = { _xml: "<ns1:MyRootElement xmlns:ns1="http://www.example.com/v1/ns1">
+                        <ChildElement>elementvalue</ChildElement>
+                     </ns1:MyRootElement>"
+            };
+```
+
+この場合、名前空間とprefixを指定する必要がある。上記の"`args`のJSON例"の用にWSDLから生成される要素は使用されず、"Request"要素が自動的に生成される。
