@@ -28,6 +28,7 @@
   - [Client.setSecurity(security)](#clientsetsecuritysecurity)
   - [Client.method(args, callback, options)](#clientmethodargs-callback-options)
   - [Client.methodAsync(args, options)](#clientmethodasyncargs-options)
+  - [Client.service.port.method(args, callback\[,options\[,extraHeaders\]\])](#clientserviceportmethodargs-callbackoptionsextraheaders)
 
 ## 機能
 
@@ -534,3 +535,72 @@ XMLを構成するためのJSON`args`に含まれる個々の要素の代わり�
 ```
 
 この場合、名前空間とprefixを指定する必要がある。上記の"`args`のJSON例"の用にWSDLから生成される要素は使用されず、"Request"要素が自動的に生成される。
+
+### Client.service.port.method(args, callback[,options[,extraHeaders]])
+
+指定のサービスとポートを使用したメソッドを呼び出す
+
+- `args` (*Object*): SOAPボディ部中にあるXMLドキュメントを生成する引数
+- `callback` (*Function*)
+- `options` (*Object*): [Client.method(args, callback, options)](#clientmethodargs-callback-options)を参照
+- `extraHeaders` (*Object*): WSDLリクエストのHTTPヘッダーの集合
+
+使用例
+
+```js
+  client.MyService.MyPort.MyFunction({name: 'value'}, function(err, result) {
+      // resultはJavaScriptオブジェクト
+  })
+```
+
+**オプション(任意)**
+
+- リクエストモジュールが受け付ける任意のオプションを受け付ける。[ここ](https://github.com/request/request)を参照
+- 以下の例では、リクエストのタイムアウトを5秒に設定している:
+```js
+  client.MyService.MyPort.MyFunction({name: 'value'}, function(err, result) {
+      // resultはJavaScriptオブジェクト
+  }, {timeout: 5000})
+```
+- リクエストが渡されてからの経過時間も計測可能である
+```js
+  client.MyService.MyPort.MyFunction({name: 'value'}, function(err, result) {
+      // client.lastElapsedTime - 最後のリクエストのミリ秒での経過時間
+  }, {time: true})
+```
+- [Fiddler](https://www.telerik.com/fiddler)や[Betwixt](https://github.com/kdzwinel/betwixt)のようなデバッグプロキシ経由でもSOAPリクエストを渡すことができる
+```js
+  client.MyService.MyPort.MyFunction({name: 'value'}, function(err, result) {
+      // client.lastElapsedTime - 最後のリクエストのミリ秒での経過時間
+  }, {proxy: 'http://localhost:8888'})
+```
+- 呼び出す前にxmlを変更することもできる
+```js
+  client.MyService.MyPort.MyFunction({name: 'value'}, function(err, result) {
+      // client.lastElapsedTime - 最後のリクエストのミリ秒での経過時間
+  }, {postProcess: function(_xml) {
+    return _xml.replace('text', 'newtext');
+  }})
+```
+
+**追加のヘッダー(任意)**
+
+オブジェクトプロパティーはリクエストの追加のHTTPヘッダーを定義する
+
+- カスタムUser-Agentを追加
+```js
+client.addHttpHeader('User-Agent', `CustomUserAgent`);
+```
+
+**callback-lastパターンを使用した代替メソッドの呼び出し**
+
+メソッド呼び出しのシグネチャーをnodeの標準的なcallback-lastパターンに合わせ、メソッド呼び出しのPromise化するイベントを可能にするために、以下のメソッドシグネチャーをサポートしている:
+```js
+client.MyService.MyPort.MyFunction({name: 'value'}, options, function (err, result) {
+  // resultはJavaScriptオブジェクト
+})
+
+client.MyService.MyPort.MyFunction({name: 'value'}, options, extraHeaders, function (err, result) {
+  // resultはJavaScriptオブジェクト
+})
+```
