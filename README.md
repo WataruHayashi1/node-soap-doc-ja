@@ -29,6 +29,14 @@
   - [Client.method(args, callback, options)](#clientmethodargs-callback-options)
   - [Client.methodAsync(args, options)](#clientmethodasyncargs-options)
   - [Client.service.port.method(args, callback\[,options\[,extraHeaders\]\])](#clientserviceportmethodargs-callbackoptionsextraheaders)
+  - [名前空間prefixのオーバーライド](#名前空間prefixのオーバーライド)
+  - [Client.lastRequest](#clientlastrequest)
+  - [Client.setEndpoint(url)](#clientsetendpointurl)
+  - [クライアントイベント](#クライアントイベント)
+- [WSDL](#wsdl)
+- [WSDL.constructor(wsdl, baseURL, options)](#wsdlconstructorwsdl-baseurl-options)
+  - [wsdl.xmlToObject(xml)](#wsdlxmltoobjectxml)
+  - [wsdl.objectToXML(object, typeName, namespacePrefix, namespaceURI, ...)](#wsdlobjecttoxmlobject-typename-namespaceprefix-namespaceuri-)
 
 ## 機能
 
@@ -603,4 +611,161 @@ client.MyService.MyPort.MyFunction({name: 'value'}, options, function (err, resu
 client.MyService.MyPort.MyFunction({name: 'value'}, options, extraHeaders, function (err, result) {
   // resultはJavaScriptオブジェクト
 })
+```
+
+### 名前空間prefixのオーバーライド
+
+`node-soap`は名前空間について問題を解決している最中である。リクエストボディ中のある要素に誤った名前空間prefixが与えられていた場合、オブジェクト中の名前にprefixを加えることができる。
+
+すなわち:
+
+```js
+  client.MyService.MyPort.MyFunction({'ns1:name': 'value'}, function(err, result) {
+      // 名前空間がどうあるべきかに関係なく、リクエストボディには`<ns:name>`が含まれる
+  }, {timeout: 5000})
+```
+
+- パラメーターの名前空間prefixを取り除く場合
+```js
+  client.MyService.MyPort.MyFunction({':name': 'value'}, function(err, result) {
+      // 名前空間がどうあるべきかに関係なく、リクエストボディには`<name>`が含まれる
+  }, {timeout: 5000})
+```
+
+### Client.lastRequest
+
+クライアントに記録された最後のSOAPリクエストを含むプロパティー
+
+### Client.setEndpoint(url)
+
+SOAPサービスのエンドポイントアドレスを書き換える
+
+### クライアントイベント
+
+クライアントインスタンスは以下のイベントを発する。
+
+**リクエスト**
+
+リクエストが送信される前に発せられる。イベントハンドラーのシグネチャーは`(xml, eid)`となる。
+
+- xml : ヘッダーを含むSOAPリクエスト(エンベロープ)全体
+- eid : exchange id
+
+**メッセージ**
+
+リクエストが送信される前に発せられるが、ボディのみイベントハンドラーに渡される。
+SOAPヘッダーの/storeをログに残したくない場合に有用である。イベントハンドラーのシグネチャーは`(message, eid)`となる。
+
+- message : SOAPのボディコンテンツ
+- eid : exchange id
+
+**SOAPエラー**
+
+間違ったレスポンスを受け取ったときに発せられる。エラーのログをグローバルに取得したいときに有用である。
+イベントハンドラーのシグネチャーは`(error, eid)`となる。
+
+- error : レスポンスも含むエラーオブジェクト
+- eid : exchange id
+
+**レスポンス**
+
+レスポンスを受け取った後に発せられる。成功・エラー問わず全てのレスポンスに対して発せられる。
+イベントハンドラーのシグネチャーは`(body, response, eid)`となる。
+
+- body : SOAPレスポンスのボディ
+- response : `IncomigMessage`レスポンスオブジェクトの全体
+- eid : exchange id
+
+'exchange'はリクエストとレスポンスの組み合わせである。全てのイベントで、イベントハンドラーはexchange idを受け取る。
+exchange idはリクエストとレスポンスで同じものであり、レスポンスを受け取った時に組み合わせとなるリクエストがわかるものとなっている。
+
+exchange idは、デフォルトではnode-uuidを使用して生成されるが、クライアント呼び出しの中で自分で設定することもできる。
+
+使用例:
+```js
+  client.MyService.MyPort.MyFunction(args , function(err, result) {
+
+  }, {exchangeId: myExchangeId})
+```
+
+## WSDL
+
+WSDLインスタンスはSOAP呼び出しなしでメッセージをまとめたいときにも直接インスタンス化することができる。
+WSDLがサービス(Windows Communication Foundation SOAP web servicesなど)のバインディングを含んでいないときに使用できる。
+
+## WSDL.constructor(wsdl, baseURL, options)
+
+WSDLコンテンツかWSDLへのURLからWSDLインスタンスを構築する。
+
+**パラメーター**
+
+- wsdl: WSDLかWSDLへのURL
+- baseURL: SOAP APIのベースURL
+- options: オプション(詳細はソースを確認)、デフォルトは`{}`
+
+### wsdl.xmlToObject(xml)
+
+xmlからオブジェクトへ変換する
+
+**パラメーター**
+
+- xml: 変換するSOAPレスポンス(xml)
+
+**返り値**
+
+xmlのオブジェクトをキーとして含むオブジェクト
+
+### wsdl.objectToXML(object, typeName, namespacePrefix, namespaceURI, ...)
+
+オブジェクトをxmlへ変換する
+
+**パラメーター**
+
+- object: 変換するオブジェクト
+- typeName: オブジェクトの型(wsdlごと)
+- namespacePrefix: 名前空間のprefix
+- namespaceURI: 名前空間のURI
+
+**返り値**
+
+オブジェクトのXML表現
+
+使用例:
+```js
+// 実際に使用する際の概要
+import { AxiosInstance } from 'axios';
+import { WSDL } from 'soap';
+import { IProspectType } from './types';
+
+// WSDLの文字列
+const WSDL_CONTENT = "...";
+
+const httpClient: AxiosInstance = /* ... インスタンス化 ... */;
+const url = 'http://example.org/SoapService.svc';
+
+const wsdl = new WSDL(WSDL_CONTENT, baseURL, {});
+
+async function sampleGetCall(): IProspectType | undefined {
+    const res = await httpClient.get(`${baseURL}/GetProspect`);
+
+    const object = wsdl.xmlToObject(res.data);
+
+    if (!object.ProspectType) {
+      // レスポンスに期待された型がないとき
+      return undefined;
+    }
+    // オプションで、いくつかのフィールドのアンラップとデフォルトの設定を行う
+    // オブジェクトが期待されるプロトタイプと合致することを保証する
+    // 最後に結果をキャストして返す
+    return object.ProspectType as IProspectType;
+}
+
+async function samplePostCall(prospect: IProspectType) {
+  // objectToXML(object, typeName, namespacePrefix, namespaceURI, ...)
+  const objectBody = wsdl.objectToXML(obj, 'ProspectType', '', '');
+  const data = `<?xml version="1.0" ?>${body}`;
+
+  const res = await httpClient.post(`${baseURL}/ProcessProspect`, data);
+  // Optionally, deserialize request and return response status.
+}
 ```
