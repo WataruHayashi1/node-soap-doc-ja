@@ -37,6 +37,12 @@
 - [WSDL.constructor(wsdl, baseURL, options)](#wsdlconstructorwsdl-baseurl-options)
   - [wsdl.xmlToObject(xml)](#wsdlxmltoobjectxml)
   - [wsdl.objectToXML(object, typeName, namespacePrefix, namespaceURI, ...)](#wsdlobjecttoxmlobject-typename-namespaceprefix-namespaceuri-)
+- [セキュリティ](#セキュリティ)
+  - [BasicAuthSecurity](#basicauthsecurity)
+  - [BearerSecurity](#bearersecurity)
+  - [ClientSSLSecurity](#clientsslsecurity)
+  - [ClientSSLSecurityPFX](#clientsslsecuritypfx)
+  - [WSSecurity](#wssecurity)
 
 ## 機能
 
@@ -769,3 +775,99 @@ async function samplePostCall(prospect: IProspectType) {
   // Optionally, deserialize request and return response status.
 }
 ```
+
+## セキュリティ
+
+`node-soap`はデフォルトでいくつかセキュリティプロトコルが備わっていて、追加も簡単に行える。
+インターフェースはシンプルなものとなっている。
+各プロトコルは以下のオプションメソッドを定義している。
+
+- `addOptions(options)`: 最終的に直接`request`に渡されるoptions argsを受け取るメソッド
+- `addHeaders(headers)`: 新しいヘッダーに加えるためのHTTPヘッダーと引数を受け取るメソッド
+- `toXML()`: SOAPヘッダーに加えられたXMLを返すメソッド。`postProcess`が定義されている場合は実行されない。
+- `postProcess(xml, envelopeKey)`: リクエストXMLとエンベロープキーを組み合わせたものを受け取り、処理されたXMLを返すメソッド。
+  `options.postProcess`の前に実行される。
+
+### BasicAuthSecurity
+
+```js
+client.setSecurity(new soap.BasicAuthSecurity('username', 'password'));
+```
+
+### BearerSecurity
+
+```js
+client.setSecurity(new soap.BearerSecurity('token'));
+```
+
+### ClientSSLSecurity
+
+メモ: プロトコルの動作に問題がある場合、デフォルトのリクエストオプションとして以下のオプションがコンストラクターに渡されていると考えられる。
+
+- `rejectUnauthorized: false`
+- `strictSSL: false`
+- `secureOptions: constants.SSL_OP_NO_TLSv1_2` (nodeのバージョンが10.0以上の時に必要であると思われる)
+
+`forever: true`オプションを使えば、TLSセッションの再利用ができる。
+
+```js
+client.setSecurity(new soap.ClientSSLSecurity(
+                '/path/to/key',
+                'path/to/cert',
+                '/path/to/ca-cert',  /* もしくはバッファーの配列: [fs.readFileSync('/path/to/ca-cert/1', 'utf8'),
+                'fs.readFileSync('/path/to/ca-cert/2', 'utf8')], */
+                {   /* デフォルトリクエストオプションは以下の通り */
+                    // strictSSL: true,
+                    // rejectUnauthorized: false,
+                    // hostname: 'some-hostname'
+                    // secureOptions: constants.SSL_OP_NO_TLSv1_2,
+                    // forever: true,
+                },
+      ));
+```
+
+### ClientSSLSecurityPFX
+
+メモ: プロトコルの動作に問題がある場合、デフォルトのリクエストオプションとして以下のオプションがコンストラクターに渡されていると考えられる。
+
+- `rejectUnauthorized: false`
+- `strictSSL: false`
+- `secureOptions: constants.SSL_OP_NO_TLSv1_2` (nodeのバージョンが10.0以上の時に必要であると思われる)
+
+`forever: true`オプションを使えば、TLSセッションの再利用ができる。
+
+```js
+client.setSecurity(new soap.ClientSSLSecurityPFX(
+                '/path/to/pfx/cert', // もしくはバッファー: [fs.readFileSync('/path/to/pfx/cert', 'utf8'),
+                'path/to/optional/passphrase',
+                {   /* デフォルトリクエストオプションは以下の通り */
+                    // strictSSL: true,
+                    // rejectUnauthorized: false,
+                    // hostname: 'some-hostname'
+                    // secureOptions: constants.SSL_OP_NO_TLSv1_2,
+                    // forever: true,
+                },
+      ));
+```
+
+### WSSecurity
+
+`WSSecurity`はWS-Securityを埋め込む。ユーザーネームトークンとPasswordText/PasswordDigestに対応。
+
+```js
+  var options = {
+    hasNonce: true,
+    actor: 'actor'
+  };
+  var wsSecurity = new soap.WSSecurity('username', 'password', options)
+  client.setSecurity(wsSecurity);
+```
+
+`options`オブジェクトはオプションで、以下のプロパティーを含めることができる。
+
+- `passwordType`: PasswordTextかPasswordDigest (デフォルトは`'PasswordText'`)
+- `hasTimeStamp`: タイムスタンプ要素を追加する (デフォルトは`true`)
+- `hasTokenCreated`: Created要素を追加する (デフォルトは`true`)
+- `hasNonce`: Nonce要素を追加する (デフォルトは`false`)
+- `mustUnderstand`: セキュリティタグにmustUnderstand=1属性を追加する (デフォルトは`false`)
+- `actor`: 設定すると、セキュリティタグにActor要素と値を追加する (デフォルトは`''`)
